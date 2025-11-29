@@ -1,0 +1,512 @@
+// Tournament SaaS Platform - Prisma Schema
+// Database: PostgreSQL with JSONB support
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// AUTHENTICATION & USERS
+// ============================================
+
+enum UserRole {
+  ADMIN
+  ORGANIZER
+  PLAYER
+  REFEREE
+  SPECTATOR
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  BANNED
+  PENDING_VERIFICATION
+}
+
+model User {
+  id                String       @id @default(uuid())
+  email             String       @unique
+  username          String       @unique
+  passwordHash      String
+  firstName         String?
+  lastName          String?
+  avatar            String?
+  role              UserRole     @default(PLAYER)
+  status            UserStatus   @default(PENDING_VERIFICATION)
+  emailVerified     Boolean      @default(false)
+  phoneNumber       String?
+  country           String?
+  timezone          String?
+
+  // Metadata
+  metadata          Json?        // Additional user preferences, settings
+
+  // Timestamps
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  lastLoginAt       DateTime?
+
+  // Relations
+  wallet            Wallet?
+  organizedTournaments Tournament[] @relation("TournamentOrganizer")
+  participations    Participant[]
+  refereeTournaments Tournament[] @relation("TournamentReferees")
+  transactions      Transaction[]
+  gameStats         GameStats[]
+
+  @@index([email])
+  @@index([username])
+  @@index([role])
+  @@index([status])
+  @@map("users")
+}
+
+// ============================================
+// TOURNAMENTS
+// ============================================
+
+enum TournamentStatus {
+  DRAFT
+  REGISTRATION_OPEN
+  REGISTRATION_CLOSED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum TournamentType {
+  SINGLE_ELIMINATION
+  DOUBLE_ELIMINATION
+  ROUND_ROBIN
+  SWISS
+  BATTLE_ROYALE
+  CUSTOM
+}
+
+enum TournamentVisibility {
+  PUBLIC
+  PRIVATE
+  INVITE_ONLY
+}
+
+model Tournament {
+  id                String              @id @default(uuid())
+  name              String
+  description       String?
+  game              String              // e.g., "League of Legends", "Valorant"
+  type              TournamentType
+  status            TournamentStatus    @default(DRAFT)
+  visibility        TournamentVisibility @default(PUBLIC)
+
+  // Organizer
+  organizerId       String
+  organizer         User                @relation("TournamentOrganizer", fields: [organizerId], references: [id], onDelete: Cascade)
+
+  // Capacity & Pricing
+  maxParticipants   Int
+  currentParticipants Int              @default(0)
+  entryFee          Decimal             @default(0) @db.Decimal(10, 2)
+  prizePool         Decimal             @default(0) @db.Decimal(10, 2)
+
+  // Dates
+  registrationStart DateTime
+  registrationEnd   DateTime
+  startDate         DateTime
+  endDate           DateTime?
+
+  // Rules & Configuration (JSONB)
+  rules             Json?               // { matchFormat: "BO3", maps: ["Dust2"], etc. }
+  prizes            Json?               // { "1st": 1000, "2nd": 500, distribution: "auto" }
+  customSettings    Json?               // Game-specific settings
+
+  // Branding
+  banner            String?
+  logo              String?
+
+  // Metadata
+  metadata          Json?               // Additional tournament data
+
+  // Timestamps
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  // Relations
+  participants      Participant[]
+  matches           Match[]
+  phases            TournamentPhase[]
+  referees          User[]              @relation("TournamentReferees")
+
+  @@index([status])
+  @@index([type])
+  @@index([organizerId])
+  @@index([startDate])
+  @@index([game])
+  @@map("tournaments")
+}
+
+// ============================================
+// TOURNAMENT PHASES (for multi-stage tournaments)
+// ============================================
+
+enum PhaseType {
+  GROUP_STAGE
+  PLAYOFFS
+  FINALS
+  QUALIFIER
+  CUSTOM
+}
+
+enum PhaseStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
+model TournamentPhase {
+  id              String        @id @default(uuid())
+  tournamentId    String
+  tournament      Tournament    @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  name            String
+  type            PhaseType
+  status          PhaseStatus   @default(PENDING)
+  order           Int           // Phase sequence: 1, 2, 3...
+
+  // Configuration
+  config          Json?         // Phase-specific rules
+
+  // Dates
+  startDate       DateTime?
+  endDate         DateTime?
+
+  // Relations
+  matches         Match[]
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([tournamentId])
+  @@index([status])
+  @@map("tournament_phases")
+}
+
+// ============================================
+// PARTICIPANTS
+// ============================================
+
+enum ParticipantStatus {
+  REGISTERED
+  CONFIRMED
+  CHECKED_IN
+  ELIMINATED
+  WITHDRAWN
+  DISQUALIFIED
+}
+
+model Participant {
+  id              String              @id @default(uuid())
+  tournamentId    String
+  tournament      Tournament          @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  userId          String
+  user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  status          ParticipantStatus   @default(REGISTERED)
+  seed            Int?                // Seeding position
+  finalRank       Int?                // Final placement
+
+  // Team info (if applicable)
+  teamName        String?
+  teamMembers     Json?               // Array of team member IDs/names
+
+  // Check-in
+  checkedInAt     DateTime?
+
+  // Stats
+  wins            Int                 @default(0)
+  losses          Int                 @default(0)
+
+  // Metadata
+  metadata        Json?
+
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  // Relations
+  homeMatches     Match[]             @relation("HomeParticipant")
+  awayMatches     Match[]             @relation("AwayParticipant")
+  gameStats       GameStats[]
+
+  @@unique([tournamentId, userId])
+  @@index([tournamentId])
+  @@index([userId])
+  @@index([status])
+  @@map("participants")
+}
+
+// ============================================
+// MATCHES
+// ============================================
+
+enum MatchStatus {
+  SCHEDULED
+  LIVE
+  COMPLETED
+  CANCELLED
+  DISPUTED
+}
+
+model Match {
+  id              String        @id @default(uuid())
+  tournamentId    String
+  tournament      Tournament    @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  phaseId         String?
+  phase           TournamentPhase? @relation(fields: [phaseId], references: [id], onDelete: SetNull)
+
+  // Match info
+  round           Int           // Round number in the tournament
+  matchNumber     Int           // Match number within the round
+  bestOf          Int           @default(1) // BO1, BO3, BO5
+
+  status          MatchStatus   @default(SCHEDULED)
+
+  // Participants
+  homeParticipantId String?
+  homeParticipant   Participant? @relation("HomeParticipant", fields: [homeParticipantId], references: [id], onDelete: SetNull)
+
+  awayParticipantId String?
+  awayParticipant   Participant? @relation("AwayParticipant", fields: [awayParticipantId], references: [id], onDelete: SetNull)
+
+  // Scores
+  homeScore       Int           @default(0)
+  awayScore       Int           @default(0)
+
+  // Winner
+  winnerId        String?       // ID of winning participant
+
+  // Schedule
+  scheduledAt     DateTime?
+  startedAt       DateTime?
+  completedAt     DateTime?
+
+  // Match data (JSONB)
+  matchData       Json?         // Game-specific data: maps played, detailed scores, etc.
+
+  // Stream & Metadata
+  streamUrl       String?
+  metadata        Json?
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  gameStats       GameStats[]
+
+  @@index([tournamentId])
+  @@index([phaseId])
+  @@index([status])
+  @@index([scheduledAt])
+  @@map("matches")
+}
+
+// ============================================
+// GAME STATISTICS (JSONB for flexibility)
+// ============================================
+
+model GameStats {
+  id              String        @id @default(uuid())
+  matchId         String
+  match           Match         @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  participantId   String
+  participant     Participant   @relation(fields: [participantId], references: [id], onDelete: Cascade)
+
+  userId          String
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Game-specific stats (JSONB for maximum flexibility)
+  stats           Json          // { "kills": 15, "deaths": 3, "assists": 8, "damage": 25000, etc. }
+
+  // Performance metrics
+  performanceScore Float?       // Calculated performance score
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([matchId])
+  @@index([participantId])
+  @@index([userId])
+  @@map("game_stats")
+}
+
+// ============================================
+// FINANCIAL SYSTEM (Double-Entry Accounting)
+// ============================================
+
+enum WalletStatus {
+  ACTIVE
+  FROZEN
+  CLOSED
+}
+
+model Wallet {
+  id              String          @id @default(uuid())
+  userId          String          @unique
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Balances (in cents/smallest currency unit)
+  balance         Decimal         @default(0) @db.Decimal(15, 2)
+  lockedBalance   Decimal         @default(0) @db.Decimal(15, 2) // Funds locked in tournaments
+
+  currency        String          @default("USD")
+  status          WalletStatus    @default(ACTIVE)
+
+  // Metadata
+  metadata        Json?
+
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  // Relations
+  transactions    Transaction[]
+
+  @@index([userId])
+  @@index([status])
+  @@map("wallets")
+}
+
+// ============================================
+// TRANSACTIONS (Double-Entry Implementation)
+// ============================================
+
+enum TransactionType {
+  DEPOSIT           // User adds funds
+  WITHDRAWAL        // User withdraws funds
+  TOURNAMENT_ENTRY  // Entry fee payment
+  PRIZE_PAYOUT      // Prize distribution
+  REFUND            // Refund to user
+  FEE               // Platform fee
+  TRANSFER          // Transfer between users
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REVERSED
+}
+
+enum EntryType {
+  DEBIT   // Money leaving the account
+  CREDIT  // Money entering the account
+}
+
+model Transaction {
+  id              String              @id @default(uuid())
+
+  // Double-Entry: Each transaction creates TWO entries
+  walletId        String
+  wallet          Wallet              @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  userId          String
+  user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Transaction details
+  type            TransactionType
+  entryType       EntryType           // DEBIT or CREDIT
+  amount          Decimal             @db.Decimal(15, 2)
+
+  status          TransactionStatus   @default(PENDING)
+
+  // Reference to related entity
+  referenceId     String?             // Tournament ID, Match ID, etc.
+  referenceType   String?             // "TOURNAMENT", "MATCH", "USER"
+
+  // Counterparty for double-entry
+  counterpartyTransactionId String?   @unique // Links to the opposite entry
+
+  // Balance snapshot after transaction
+  balanceAfter    Decimal             @db.Decimal(15, 2)
+
+  // Description
+  description     String?
+
+  // Metadata
+  metadata        Json?               // Additional transaction data
+
+  // Timestamps
+  createdAt       DateTime            @default(now())
+  processedAt     DateTime?
+
+  @@index([walletId])
+  @@index([userId])
+  @@index([type])
+  @@index([status])
+  @@index([referenceId])
+  @@index([createdAt])
+  @@map("transactions")
+}
+
+// ============================================
+// JOB QUEUE (for Bull/BullMQ)
+// ============================================
+
+enum JobStatus {
+  WAITING
+  ACTIVE
+  COMPLETED
+  FAILED
+  DELAYED
+  PAUSED
+}
+
+enum JobType {
+  MATCH_NOTIFICATION
+  TOURNAMENT_START
+  PRIZE_DISTRIBUTION
+  ANALYTICS_CALCULATION
+  EMAIL_NOTIFICATION
+  WEBHOOK_DELIVERY
+}
+
+model Job {
+  id              String        @id @default(uuid())
+  type            JobType
+  status          JobStatus     @default(WAITING)
+
+  // Job data
+  data            Json          // Job payload
+  result          Json?         // Job result after completion
+
+  // Execution
+  attempts        Int           @default(0)
+  maxAttempts     Int           @default(3)
+
+  // Timing
+  scheduledFor    DateTime?     // When to run the job
+  startedAt       DateTime?
+  completedAt     DateTime?
+  failedAt        DateTime?
+
+  // Error handling
+  error           String?
+  stackTrace      String?
+
+  // Priority
+  priority        Int           @default(0)
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([status])
+  @@index([type])
+  @@index([scheduledFor])
+  @@map("jobs")
+}
