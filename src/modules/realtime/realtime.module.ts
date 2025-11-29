@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common';
-import { RealtimeGateway } from './realtime.gateway';
+import { TournamentGateway } from './gateways/tournament.gateway';
 import { RealtimeService } from './realtime.service';
 
 @Module({
-  providers: [RealtimeGateway, RealtimeService],
-  exports: [RealtimeService],
+  providers: [TournamentGateway, RealtimeService],
+  exports: [TournamentGateway, RealtimeService],
 })
 export class RealtimeModule {}
