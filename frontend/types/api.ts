@@ -115,16 +115,40 @@ export enum MatchStatus {
   CANCELLED = 'CANCELLED',
 }
 
+export interface Participant {
+  id: string
+  name: string
+  seed?: number
+  avatar?: string
+}
+
 export interface Match {
   id: string
   tournamentId: string
   round: number
   matchNumber: number
   status: MatchStatus
+  bracket: 'winners' | 'losers' | 'grand-final'
+
+  // Participants
+  participant1?: Participant
+  participant2?: Participant
+
+  // Results
+  winnerId?: string
+  score?: {
+    participant1: number
+    participant2: number
+  }
+
+  // Navigation (for bracket tree construction)
+  nextMatchId?: string
+
+  // Timestamps
   scheduledAt?: string
   startedAt?: string
   completedAt?: string
-  winnerId?: string
-  score?: any
+
+  // Additional data
   details?: any
 }
