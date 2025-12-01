@@ -23,12 +23,15 @@
     "prisma:studio": "prisma studio",
     "prisma:seed": "ts-node prisma/seed.ts",
     "setup": "./scripts/setup.sh",
+    "setup:windows": "powershell -ExecutionPolicy Bypass -File ./scripts/setup.ps1",
     "dev:all": "./scripts/dev.sh",
-    "docker:up": "./scripts/docker.sh up",
-    "docker:down": "./scripts/docker.sh down",
-    "docker:restart": "./scripts/docker.sh restart",
-    "docker:logs": "./scripts/docker.sh logs",
-    "docker:clean": "./scripts/docker.sh clean"
+    "dev:backend": "npm run start:dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:restart": "docker-compose restart",
+    "docker:logs": "docker-compose logs -f",
+    "docker:clean": "docker-compose down -v --rmi all"
   },
   "dependencies": {
     "@nestjs/bull": "^10.0.1",
