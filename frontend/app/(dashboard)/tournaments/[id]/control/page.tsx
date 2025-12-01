@@ -9,6 +9,8 @@
 import React, { useState } from 'react'
 import { useParams } from 'next/navigation'
 import { useTournamentSocket } from '@/lib/hooks/use-tournament-socket'
+import { useTournament } from '@/features/tournaments/api/use-tournaments'
+import { useTournamentMatches, useUpdateMatch } from '@/features/tournaments/api/use-matches'
 import { LiveMatchesPanel } from '@/features/tournaments/components/live-matches-panel'
 import { DisputesPanel, type Alert } from '@/features/tournaments/components/disputes-panel'
 import { RefereeChat, type ChatMessage } from '@/features/tournaments/components/referee-chat'
@@ -16,12 +18,12 @@ import { MatchQuickEdit } from '@/features/tournaments/components/match-quick-ed
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Match } from '@/types/api'
+import { Loader2 } from 'lucide-react'
+import type { Match } from '@/features/tournaments/types'
 import {
   Activity,
   Users,
   Trophy,
-  DollarSign,
   TrendingUp,
   RefreshCw,
   Wifi,
@@ -34,6 +36,11 @@ export default function MissionControlPage() {
 
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null)
 
+  // Fetch real data
+  const { data: tournament, isLoading: tournamentLoading } = useTournament(tournamentId)
+  const { data: matches, isLoading: matchesLoading, refetch: refetchMatches } = useTournamentMatches(tournamentId)
+  const { mutate: updateMatch } = useUpdateMatch()
+
   // WebSocket connection
   const { isConnected } = useTournamentSocket({
     tournamentId,
@@ -43,104 +50,33 @@ export default function MissionControlPage() {
     },
     onAlert: (data) => {
       console.log('New alert:', data)
-      // Could trigger a toast notification here
     },
   })
 
-  // Mock data (replace with real API calls)
-  const tournament = {
-    id: tournamentId,
-    name: 'Valorant Champions Tour 2025',
-    status: 'IN_PROGRESS',
-    currentParticipants: 64,
-    maxParticipants: 64,
-  }
-
+  // Calculate stats from real data
   const stats = {
-    totalMatches: 127,
-    completedMatches: 45,
-    liveMatches: 3,
-    totalPrizePool: 50000,
+    totalMatches: matches?.length || 0,
+    completedMatches: matches?.filter((m) => m.status === 'COMPLETED').length || 0,
+    liveMatches: matches?.filter((m) => m.status === 'LIVE').length || 0,
+    totalPrizePool: parseFloat(tournament?.prizePool || '0'),
   }
 
-  const mockMatches: Match[] = [
-    {
-      id: 'm1',
-      tournamentId,
-      round: 1,
-      matchNumber: 0,
-      bracket: 'winners',
-      status: 'IN_PROGRESS',
-      participant1: { id: 'p1', name: 'Cloud9', seed: 1 },
-      participant2: { id: 'p2', name: 'Team Liquid', seed: 8 },
-      score: { participant1: 1, participant2: 0 },
-    },
-    {
-      id: 'm2',
-      tournamentId,
-      round: 1,
-      matchNumber: 1,
-      bracket: 'winners',
-      status: 'IN_PROGRESS',
-      participant1: { id: 'p3', name: 'Fnatic', seed: 4 },
-      participant2: { id: 'p4', name: 'G2 Esports', seed: 5 },
-      score: { participant1: 2, participant2: 1 },
-    },
-    {
-      id: 'm3',
-      tournamentId,
-      round: 1,
-      matchNumber: 2,
-      bracket: 'winners',
-      status: 'SCHEDULED',
-      participant1: { id: 'p5', name: 'Team Vitality', seed: 2 },
-      participant2: { id: 'p6', name: 'NRG', seed: 7 },
-      scheduledAt: new Date(Date.now() + 30 * 60000).toISOString(),
-    },
-  ]
+  // TODO: Replace with real alerts from API
+  const mockAlerts: Alert[] = []
 
-  const mockAlerts: Alert[] = [
-    {
-      id: 'a1',
-      type: 'dispute',
-      title: 'Match Result Disputed',
-      message: 'Cloud9 vs Team Liquid - Score discrepancy reported by referee',
-      matchId: 'm1',
-      createdAt: new Date(Date.now() - 5 * 60000).toISOString(),
-    },
-    {
-      id: 'a2',
-      type: 'warning',
-      title: 'Player Disconnect',
-      message: 'Fnatic player disconnected mid-match (3 times)',
-      matchId: 'm2',
-      createdAt: new Date(Date.now() - 2 * 60000).toISOString(),
-    },
-  ]
-
-  const mockChatMessages: ChatMessage[] = [
-    {
-      id: 'c1',
-      userId: 'ref1',
-      username: 'John Referee',
-      userRole: 'REFEREE',
-      message: 'Match 1 has technical issues, investigating now',
-      createdAt: new Date(Date.now() - 10 * 60000).toISOString(),
-    },
-    {
-      id: 'c2',
-      userId: 'org1',
-      username: 'Tournament Organizer',
-      userRole: 'ORGANIZER',
-      message: 'Thanks, keep me posted',
-      createdAt: new Date(Date.now() - 9 * 60000).toISOString(),
-    },
-  ]
+  // TODO: Replace with real chat messages from API/WebSocket
+  const mockChatMessages: ChatMessage[] = []
 
   const handleMatchUpdate = (matchId: string, data: any) => {
-    console.log('Update match:', matchId, data)
-    // API call here
-    // await apiClient.patch(`/matches/${matchId}`, data)
+    updateMatch(
+      { id: matchId, data },
+      {
+        onSuccess: () => {
+          setSelectedMatch(null)
+          refetchMatches()
+        },
+      }
+    )
   }
 
   const handleResolveAlert = (alertId: string) => {
@@ -151,6 +87,18 @@ export default function MissionControlPage() {
   const handleSendMessage = (message: string) => {
     console.log('Send message:', message)
     // WebSocket emit or API call
+  }
+
+  if (tournamentLoading || matchesLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  if (!tournament) {
+    return <div>Tournament not found</div>
   }
 
   return (
@@ -239,7 +187,7 @@ export default function MissionControlPage() {
         {/* Left Column - Live Matches */}
         <div className="lg:col-span-1">
           <LiveMatchesPanel
-            matches={mockMatches}
+            matches={matches || []}
             onMatchClick={setSelectedMatch}
             className="h-[600px]"
           />
@@ -251,7 +199,7 @@ export default function MissionControlPage() {
             alerts={mockAlerts}
             onAlertClick={(alert) => {
               if (alert.matchId) {
-                const match = mockMatches.find((m) => m.id === alert.matchId)
+                const match = matches?.find((m) => m.id === alert.matchId)
                 if (match) setSelectedMatch(match)
               }
             }}
