@@ -1,7 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
-import { ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
 import { BullModule } from '@nestjs/bull';
 import { CacheModule } from '@nestjs/cache-manager';
 
@@ -18,32 +19,48 @@ import { AnalyticsModule } from './modules/analytics/analytics.module';
 
 @Module({
   imports: [
-    // Configuration
+    // Configuration with validation
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
+      validate: require('./config/env.validation').validate,
     }),
 
     // Scheduling (for cron jobs)
     ScheduleModule.forRoot(),
 
-    // Rate limiting
+    // Rate limiting (Global protection)
     ThrottlerModule.forRoot([
       {
-        ttl: parseInt(process.env.THROTTLE_TTL || '60'),
-        limit: parseInt(process.env.THROTTLE_LIMIT || '10'),
+        name: 'short',
+        ttl: 1000, // 1 second
+        limit: 3, // 3 requests per second
+      },
+      {
+        name: 'medium',
+        ttl: 10000, // 10 seconds
+        limit: 20, // 20 requests per 10 seconds
+      },
+      {
+        name: 'long',
+        ttl: 60000, // 1 minute
+        limit: 100, // 100 requests per minute
       },
     ]),
 
-    // Bull Queue for background jobs
-    BullModule.forRoot({
-      redis: {
-        host: process.env.BULL_REDIS_HOST || 'localhost',
-        port: parseInt(process.env.BULL_REDIS_PORT || '6379'),
-      },
-    }),
+    // Bull Queue for background jobs (optional - requires Redis)
+    ...(process.env.REDIS_HOST
+      ? [
+          BullModule.forRoot({
+            redis: {
+              host: process.env.REDIS_HOST || 'localhost',
+              port: parseInt(process.env.REDIS_PORT || '6379'),
+            },
+          }),
+        ]
+      : []),
 
-    // Cache (Redis)
+    // Cache (optional - requires Redis)
     CacheModule.register({
       isGlobal: true,
       ttl: 300, // 5 minutes default
@@ -59,6 +76,13 @@ import { AnalyticsModule } from './modules/analytics/analytics.module';
     BillingModule,
     RealtimeModule,
     AnalyticsModule,
+  ],
+  providers: [
+    // Global rate limiting guard
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
   ],
 })
 export class AppModule {}
