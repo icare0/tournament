@@ -33,7 +33,7 @@ model User {
   id                String       @id @default(uuid())
   email             String       @unique
   username          String       @unique
-  passwordHash      String
+  passwordHash      String?      // Optional for OAuth users
   firstName         String?
   lastName          String?
   avatar            String?
@@ -43,6 +43,10 @@ model User {
   phoneNumber       String?
   country           String?
   timezone          String?
+
+  // OAuth fields
+  oauthProvider     String?      // 'google' | 'discord' | null
+  oauthProviderId   String?      // Provider's user ID
 
   // Metadata
   metadata          Json?        // Additional user preferences, settings
@@ -60,6 +64,7 @@ model User {
   transactions      Transaction[]
   gameStats         GameStats[]
 
+  @@unique([oauthProvider, oauthProviderId])
   @@index([email])
   @@index([username])
   @@index([role])
