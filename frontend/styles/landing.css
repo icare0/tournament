@@ -1,0 +1,144 @@
+/* ===================================
+   BLOOM LANDING PAGE STYLES
+   =================================== */
+
+/* Grainy Texture Overlay */
+.noise-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 50;
+  opacity: 0.04;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+}
+
+/* Typography Utilities */
+.text-fluid-h1 {
+  font-size: clamp(3rem, 8vw, 7.5rem);
+  line-height: 0.85;
+}
+
+.text-fluid-h2 {
+  font-size: clamp(2rem, 5vw, 4rem);
+}
+
+/* Reveal Animation Classes */
+.reveal-up {
+  opacity: 0;
+  transform: translateY(50px);
+  transition: all 1s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.reveal-up.active {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Delay classes for staggered animations */
+.reveal-up.delay-100 {
+  transition-delay: 100ms;
+}
+
+.reveal-up.delay-200 {
+  transition-delay: 200ms;
+}
+
+.reveal-up.delay-300 {
+  transition-delay: 300ms;
+}
+
+.reveal-up.delay-400 {
+  transition-delay: 400ms;
+}
+
+.reveal-up.delay-500 {
+  transition-delay: 500ms;
+}
+
+/* Image Mask Animation */
+.img-mask {
+  clip-path: inset(0 0 100% 0);
+  transition: clip-path 1.2s cubic-bezier(0.77, 0, 0.175, 1);
+}
+
+.img-mask.active {
+  clip-path: inset(0 0 0 0);
+}
+
+/* Glassmorphism UI Cards */
+.glass-card {
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+}
+
+/* Bento Grid Specifics */
+.bento-card {
+  background-color: #fcfaf7;
+  border: 1px solid rgba(28, 35, 33, 0.05);
+  transition: all 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.bento-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 20px 40px -10px rgba(28, 35, 33, 0.08);
+  border-color: rgba(196, 109, 94, 0.2);
+}
+
+/* Custom Cursor */
+.cursor-dot,
+.cursor-outline {
+  pointer-events: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  z-index: 9999;
+}
+
+.cursor-dot {
+  width: 8px;
+  height: 8px;
+  background-color: #1c2321;
+}
+
+.cursor-outline {
+  width: 40px;
+  height: 40px;
+  border: 1px solid #1c2321;
+  transition: width 0.2s, height 0.2s, background-color 0.2s;
+}
+
+body:hover .cursor-outline {
+  opacity: 1;
+}
+
+/* 3D Perspective for Dashboard Image */
+.perspective-1000 {
+  perspective: 1000px;
+}
+
+.hover\:rotate-x-2:hover {
+  transform: rotateX(2deg);
+}
+
+/* Smooth scroll behavior */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Selection styling */
+::selection {
+  background-color: #c46d5e;
+  color: white;
+}
+
+::-moz-selection {
+  background-color: #c46d5e;
+  color: white;
+}
