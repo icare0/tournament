@@ -4,7 +4,6 @@ import { useScrollReveal } from '@/hooks/useScrollReveal'
 import {
   CustomCursor,
   Navigation,
-  DownloadButton,
   HeroSection,
   MarqueeSection,
   FeaturesSection,
@@ -12,9 +11,6 @@ import {
   PricingSection,
   FooterSection,
 } from '@/components/landing'
-
-// Import custom landing page styles
-import '@/styles/landing.css'
 
 export default function HomePage() {
   // Initialize scroll reveal animations
@@ -30,9 +26,6 @@ export default function HomePage() {
 
       {/* Navigation */}
       <Navigation />
-
-      {/* Download Code Button */}
-      <DownloadButton />
 
       {/* Hero Section */}
       <HeroSection />
