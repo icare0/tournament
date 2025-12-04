@@ -16,6 +16,7 @@ import { RefereeModule } from './modules/referee/referee.module';
 import { BillingModule } from './modules/billing/billing.module';
 import { RealtimeModule } from './modules/realtime/realtime.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
+import { BroadcastModule } from './modules/broadcast/broadcast.module';
 
 @Module({
   imports: [
@@ -76,6 +77,7 @@ import { AnalyticsModule } from './modules/analytics/analytics.module';
     BillingModule,
     RealtimeModule,
     AnalyticsModule,
+    BroadcastModule,
   ],
   providers: [
     // Global rate limiting guard
