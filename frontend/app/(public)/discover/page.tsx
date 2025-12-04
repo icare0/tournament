@@ -1,317 +1,399 @@
-'use client';
+'use client'
 
-import { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { api } from '@/lib/api-client';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import {
-  Search,
-  Trophy,
-  Users,
-  Calendar,
-  DollarSign,
-  Filter,
-  TrendingUp,
-  Clock,
-} from 'lucide-react';
+import { useState, useEffect } from 'react'
+import Link from 'next/link'
+import { Search, Trophy, Users, Calendar, DollarSign, Filter, Sparkles, Zap, TrendingUp } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { api } from '@/lib/api-client'
+
+// Game artwork configuration
+const GAMES = [
+  {
+    id: 'cs2',
+    name: 'Counter-Strike 2',
+    slug: 'cs2',
+    color: 'from-orange-500 to-yellow-600',
+    artwork: '/games/cs2.jpg',
+    icon: '🎯',
+    playerCount: 'Coming Soon',
+  },
+  {
+    id: 'valorant',
+    name: 'Valorant',
+    slug: 'valorant',
+    color: 'from-red-500 to-pink-600',
+    artwork: '/games/valorant.jpg',
+    icon: '⚡',
+    playerCount: 'Coming Soon',
+  },
+  {
+    id: 'league',
+    name: 'League of Legends',
+    slug: 'league-of-legends',
+    color: 'from-blue-500 to-cyan-600',
+    artwork: '/games/league.jpg',
+    icon: '⚔️',
+    playerCount: 'Coming Soon',
+  },
+  {
+    id: 'rocket',
+    name: 'Rocket League',
+    slug: 'rocket-league',
+    color: 'from-blue-600 to-purple-600',
+    artwork: '/games/rocket.jpg',
+    icon: '🚀',
+    playerCount: 'Coming Soon',
+  },
+  {
+    id: 'fortnite',
+    name: 'Fortnite',
+    slug: 'fortnite',
+    color: 'from-purple-600 to-pink-600',
+    artwork: '/games/fortnite.jpg',
+    icon: '🌟',
+    playerCount: 'Coming Soon',
+  },
+  {
+    id: 'dota',
+    name: 'Dota 2',
+    slug: 'dota-2',
+    color: 'from-red-600 to-orange-600',
+    artwork: '/games/dota.jpg',
+    icon: '🔥',
+    playerCount: 'Coming Soon',
+  },
+]
 
 interface Tournament {
-  id: string;
-  name: string;
-  game: string;
-  type: string;
-  status: string;
-  visibility: string;
-  maxParticipants: number;
-  prizePool: number | null;
-  entryFee: number;
-  startDate: string;
-  endDate: string | null;
+  id: string
+  name: string
+  game: string
+  type: string
+  status: string
+  visibility: string
+  maxParticipants: number
+  prizePool: number | null
+  entryFee: number
+  startDate: string
   organizer: {
-    id: string;
-    username: string;
-    avatar: string | null;
-  };
+    username: string
+    avatar: string | null
+  }
   _count?: {
-    participants: number;
-  };
+    participants: number
+  }
 }
 
 export default function DiscoverPage() {
-  const [tournaments, setTournaments] = useState<Tournament[]>([]);
-  const [trending, setTrending] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedGame, setSelectedGame] = useState<string>('all');
-  const [selectedStatus, setSelectedStatus] = useState<string>('all');
-
-  const games = ['all', 'League of Legends', 'Counter-Strike 2', 'Valorant', 'Dota 2', 'Fortnite', 'Rocket League'];
-  const statuses = ['all', 'REGISTRATION_OPEN', 'IN_PROGRESS', 'UPCOMING'];
+  const [tournaments, setTournaments] = useState<Tournament[]>([])
+  const [loading, setLoading] = useState(true)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedGame, setSelectedGame] = useState<string>('all')
+  const [hoveredGame, setHoveredGame] = useState<string | null>(null)
 
   useEffect(() => {
-    fetchTournaments();
-    fetchTrending();
-  }, [selectedGame, selectedStatus]);
+    fetchTournaments()
+  }, [selectedGame])
 
   const fetchTournaments = async () => {
     try {
-      setLoading(true);
+      setLoading(true)
       const params = new URLSearchParams({
         visibility: 'PUBLIC',
         ...(selectedGame !== 'all' && { game: selectedGame }),
-        ...(selectedStatus !== 'all' && { status: selectedStatus }),
-      });
+      })
 
-      const response = await api.get(`/api/v1/tournaments?${params}`);
-      setTournaments(response.data);
+      const response = await api.get(`/api/v1/tournaments?${params}`)
+      setTournaments(response.data?.data || [])
     } catch (error) {
-      console.error('Error fetching tournaments:', error);
+      console.error('Error fetching tournaments:', error)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
-  const fetchTrending = async () => {
-    try {
-      const response = await api.get('/analytics/tournaments/trending?limit=5');
-      setTrending(response.data);
-    } catch (error) {
-      console.error('Error fetching trending tournaments:', error);
-    }
-  };
-
-  const filteredTournaments = tournaments.filter((tournament) =>
-    tournament.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    tournament.game.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const getStatusBadge = (status: string) => {
-    const badges = {
-      REGISTRATION_OPEN: { color: 'bg-green-500', text: 'Open' },
-      IN_PROGRESS: { color: 'bg-blue-500', text: 'Live' },
-      REGISTRATION_CLOSED: { color: 'bg-yellow-500', text: 'Starting Soon' },
-      COMPLETED: { color: 'bg-gray-500', text: 'Completed' },
-      DRAFT: { color: 'bg-gray-400', text: 'Draft' },
-    };
-    const badge = badges[status] || { color: 'bg-gray-500', text: status };
-    return (
-      <span className={`${badge.color} rounded-full px-3 py-1 text-xs font-semibold text-white`}>
-        {badge.text}
-      </span>
-    );
-  };
+  const filteredTournaments = tournaments.filter(
+    (tournament) =>
+      tournament.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      tournament.game.toLowerCase().includes(searchQuery.toLowerCase())
+  )
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900">
-      {/* Header */}
-      <div className="border-b border-white/10 bg-black/30 backdrop-blur-sm">
-        <div className="container mx-auto px-4 py-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-4xl font-bold text-white">Discover Tournaments</h1>
-              <p className="mt-2 text-gray-400">
-                Find and join exciting tournaments from around the world
-              </p>
+    <div className="min-h-screen bg-bloom-bg text-bloom-dark antialiased">
+      {/* Noise Overlay */}
+      <div className="noise-overlay" />
+
+      {/* Hero Section - Premium Beta Launch */}
+      <section className="relative pt-32 pb-20 px-4 overflow-hidden">
+        {/* Animated Background Elements */}
+        <div className="absolute inset-0 z-0">
+          <div className="absolute top-20 right-20 w-96 h-96 bg-bloom-accent/10 rounded-full blur-3xl animate-float" />
+          <div className="absolute bottom-20 left-20 w-96 h-96 bg-bloom-sage/20 rounded-full blur-3xl animate-float-delayed" />
+        </div>
+
+        <div className="relative z-10 max-w-7xl mx-auto text-center">
+          {/* Beta Badge */}
+          <div className="inline-flex items-center gap-3 mb-6 reveal-up">
+            <span className="h-[1px] w-8 bg-bloom-dark/30" />
+            <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-bloom-dark/5 border border-bloom-dark/10">
+              <Sparkles className="h-3 w-3 text-bloom-accent animate-pulse" />
+              <span className="font-sans text-xs tracking-[0.3em] uppercase text-bloom-dark/70">
+                Beta Access
+              </span>
             </div>
-            <Link href="/login">
-              <Button className="bg-purple-600 hover:bg-purple-700">
-                Sign In to Compete
-              </Button>
+            <span className="h-[1px] w-8 bg-bloom-dark/30" />
+          </div>
+
+          {/* Main Title */}
+          <h1 className="font-serif text-6xl md:text-8xl italic text-bloom-dark mb-6 reveal-up delay-100">
+            Découvrez <br />
+            <span className="not-italic relative inline-block">
+              Votre Tournoi
+              <span className="absolute -top-6 -right-12 text-4xl md:text-6xl not-italic font-sans text-bloom-accent animate-bounce">
+                *
+              </span>
+            </span>
+          </h1>
+
+          <p className="font-sans text-lg md:text-xl text-bloom-dark/60 mt-6 mb-12 max-w-3xl mx-auto reveal-up delay-200">
+            La première plateforme où l'excellence rencontre l'organisation. <br />
+            Rejoignez les pionniers de la compétition premium.
+          </p>
+
+          {/* CTA Buttons */}
+          <div className="flex flex-col md:flex-row gap-4 items-center justify-center reveal-up delay-300">
+            <Link
+              href="/register"
+              className="bg-bloom-dark text-bloom-bg px-10 py-4 rounded-none font-sans text-sm uppercase tracking-[0.2em] hover:bg-bloom-accent transition-all duration-300 hover:scale-105"
+            >
+              Rejoindre la Beta
+            </Link>
+            <Link
+              href="#browse"
+              className="flex items-center gap-2 px-8 py-4 font-sans text-sm uppercase tracking-[0.2em] text-bloom-dark hover:opacity-70 transition-opacity border border-bloom-dark/20 hover:border-bloom-dark/40"
+            >
+              <TrendingUp className="h-4 w-4" />
+              Explorer
             </Link>
           </div>
-        </div>
-      </div>
 
-      <div className="container mx-auto px-4 py-8">
-        {/* Trending Section */}
-        {trending.length > 0 && (
-          <div className="mb-8">
-            <div className="mb-4 flex items-center gap-2">
-              <TrendingUp className="h-6 w-6 text-purple-400" />
-              <h2 className="text-2xl font-bold text-white">Trending Now</h2>
+          {/* Stats Bar - Coming Soon Teaser */}
+          <div className="mt-20 grid grid-cols-2 md:grid-cols-4 gap-6 max-w-4xl mx-auto reveal-up delay-400">
+            {[
+              { icon: '🎮', label: 'Jeux Supportés', value: '6+' },
+              { icon: '🏆', label: 'Tournois à Venir', value: 'Soon' },
+              { icon: '👥', label: 'Rejoignez-nous', value: 'Beta' },
+              { icon: '💎', label: 'Prize Pools', value: 'Soon' },
+            ].map((stat, i) => (
+              <div key={i} className="text-center group cursor-default">
+                <div className="text-3xl mb-2 group-hover:scale-110 transition-transform">
+                  {stat.icon}
+                </div>
+                <p className="font-serif text-2xl italic mb-1">{stat.value}</p>
+                <p className="font-sans text-xs uppercase tracking-wider text-bloom-dark/50">
+                  {stat.label}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Game Navigation - Premium Cards */}
+      <section id="browse" className="py-20 px-4">
+        <div className="max-w-7xl mx-auto">
+          {/* Section Header */}
+          <div className="text-center mb-16">
+            <div className="flex items-center justify-center gap-3 mb-4">
+              <span className="h-[1px] w-12 bg-bloom-dark/30" />
+              <p className="font-sans text-xs tracking-[0.3em] uppercase text-bloom-dark/60">
+                Choisissez Votre Arène
+              </p>
+              <span className="h-[1px] w-12 bg-bloom-dark/30" />
             </div>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {trending.slice(0, 3).map((tournament) => (
+            <h2 className="font-serif text-4xl md:text-6xl italic text-bloom-dark">
+              Par Jeu
+            </h2>
+          </div>
+
+          {/* Games Grid */}
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+            {GAMES.map((game, index) => (
+              <button
+                key={game.id}
+                onClick={() => setSelectedGame(game.slug)}
+                onMouseEnter={() => setHoveredGame(game.id)}
+                onMouseLeave={() => setHoveredGame(null)}
+                className={`group relative h-64 rounded-lg overflow-hidden border-2 transition-all duration-500 reveal-up ${
+                  selectedGame === game.slug
+                    ? 'border-bloom-accent scale-105 shadow-2xl'
+                    : 'border-bloom-dark/10 hover:border-bloom-dark/30 hover:scale-102'
+                }`}
+                style={{ animationDelay: `${index * 100}ms` }}
+              >
+                {/* Background Gradient */}
+                <div
+                  className={`absolute inset-0 bg-gradient-to-br ${game.color} opacity-20 group-hover:opacity-30 transition-opacity`}
+                />
+
+                {/* Artwork Background - Placeholder */}
+                <div className="absolute inset-0 bg-bloom-dark/5" />
+
+                {/* Content */}
+                <div className="relative h-full flex flex-col items-center justify-center p-6 text-center">
+                  {/* Icon */}
+                  <div className="text-6xl mb-4 group-hover:scale-110 transition-transform">
+                    {game.icon}
+                  </div>
+
+                  {/* Game Name */}
+                  <h3 className="font-serif text-2xl italic mb-2">{game.name}</h3>
+
+                  {/* Player Count Badge */}
+                  <div className="px-3 py-1 rounded-full bg-bloom-dark/10 border border-bloom-dark/20 backdrop-blur-sm">
+                    <p className="font-sans text-xs uppercase tracking-wider text-bloom-dark/70">
+                      {game.playerCount}
+                    </p>
+                  </div>
+
+                  {/* Hover Effect - Glow */}
+                  {hoveredGame === game.id && (
+                    <div className="absolute inset-0 border-2 border-bloom-accent/50 rounded-lg animate-pulse" />
+                  )}
+                </div>
+
+                {/* Selected Indicator */}
+                {selectedGame === game.slug && (
+                  <div className="absolute top-4 right-4">
+                    <div className="w-3 h-3 bg-bloom-accent rounded-full" />
+                    <div className="absolute inset-0 bg-bloom-accent rounded-full animate-ping opacity-75" />
+                  </div>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Tournaments List Section */}
+      <section className="py-20 px-4 bg-bloom-dark/[0.02]">
+        <div className="max-w-7xl mx-auto">
+          {/* Search & Filters */}
+          <div className="mb-12">
+            <div className="relative max-w-2xl mx-auto">
+              <Search className="absolute left-6 top-1/2 -translate-y-1/2 h-5 w-5 text-bloom-dark/40" />
+              <Input
+                type="text"
+                placeholder="Rechercher un tournoi..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-14 pr-6 py-6 bg-white/80 backdrop-blur-sm border-2 border-bloom-dark/10 focus:border-bloom-accent rounded-lg font-sans text-base transition-all"
+              />
+            </div>
+          </div>
+
+          {/* Tournaments Grid */}
+          {loading ? (
+            <div className="text-center py-20">
+              <div className="inline-block w-16 h-16 border-4 border-bloom-dark/20 border-t-bloom-accent rounded-full animate-spin" />
+              <p className="font-sans text-sm uppercase tracking-wider text-bloom-dark/50 mt-4">
+                Chargement...
+              </p>
+            </div>
+          ) : filteredTournaments.length === 0 ? (
+            <div className="text-center py-20">
+              <div className="mb-6">
+                <Trophy className="h-16 w-16 text-bloom-dark/20 mx-auto" />
+              </div>
+              <p className="font-serif text-3xl italic text-bloom-dark/40 mb-4">
+                Bientôt Disponible
+              </p>
+              <p className="font-sans text-sm text-bloom-dark/50 max-w-md mx-auto">
+                Les tournois arrivent très prochainement. Inscrivez-vous pour être notifié dès leur lancement.
+              </p>
+              <Link
+                href="/register"
+                className="inline-block mt-8 bg-bloom-dark text-bloom-bg px-8 py-3 rounded-none font-sans text-xs uppercase tracking-[0.2em] hover:bg-bloom-accent transition-colors"
+              >
+                Me Notifier
+              </Link>
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredTournaments.map((tournament, index) => (
                 <Link
-                  key={tournament.tournamentId}
-                  href={`/tournaments/${tournament.tournamentId}`}
-                  className="group"
+                  key={tournament.id}
+                  href={`/tournaments/${tournament.id}`}
+                  className="group reveal-up"
+                  style={{ animationDelay: `${index * 50}ms` }}
                 >
-                  <div className="h-full rounded-lg border-2 border-purple-500/50 bg-gradient-to-br from-purple-900/50 to-pink-900/50 p-6 transition-all hover:border-purple-400 hover:shadow-lg hover:shadow-purple-500/50">
-                    <div className="mb-4 flex items-start justify-between">
-                      <div>
-                        <h3 className="text-xl font-bold text-white group-hover:text-purple-300">
+                  <div className="h-full p-6 bg-white/60 backdrop-blur-sm border-2 border-bloom-dark/10 rounded-lg hover:border-bloom-accent hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+                    {/* Header */}
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex-1">
+                        <h3 className="font-serif text-2xl italic group-hover:text-bloom-accent transition-colors">
                           {tournament.name}
                         </h3>
-                        <p className="text-sm text-gray-400">{tournament.game}</p>
+                        <p className="font-sans text-xs uppercase tracking-wider text-bloom-dark/50 mt-1">
+                          {tournament.game}
+                        </p>
                       </div>
-                      {getStatusBadge(tournament.status)}
+                      <span className="px-3 py-1 rounded-full bg-green-500/10 text-green-600 text-xs font-sans uppercase tracking-wider border border-green-500/20">
+                        {tournament.status === 'REGISTRATION_OPEN' ? 'Open' : tournament.status}
+                      </span>
                     </div>
-                    <div className="space-y-2 text-sm text-gray-300">
-                      <div className="flex items-center gap-2">
-                        <Users className="h-4 w-4" />
-                        <span>
-                          {tournament.totalParticipants}/{tournament.maxParticipants} Players
+
+                    {/* Info Grid */}
+                    <div className="space-y-3 mb-6">
+                      <div className="flex items-center gap-3 text-sm">
+                        <Users className="h-4 w-4 text-bloom-dark/40" />
+                        <span className="font-sans text-bloom-dark/70">
+                          {tournament._count?.participants || 0}/{tournament.maxParticipants} Joueurs
                         </span>
                       </div>
-                      {tournament.prizePool && (
-                        <div className="flex items-center gap-2">
-                          <Trophy className="h-4 w-4 text-yellow-500" />
-                          <span className="font-semibold text-yellow-400">
+
+                      <div className="flex items-center gap-3 text-sm">
+                        <Calendar className="h-4 w-4 text-bloom-dark/40" />
+                        <span className="font-sans text-bloom-dark/70">
+                          {new Date(tournament.startDate).toLocaleDateString('fr-FR')}
+                        </span>
+                      </div>
+
+                      {tournament.prizePool && tournament.prizePool > 0 && (
+                        <div className="flex items-center gap-3 text-sm">
+                          <Trophy className="h-4 w-4 text-bloom-accent" />
+                          <span className="font-sans font-medium text-bloom-accent">
                             ${tournament.prizePool} Prize Pool
                           </span>
                         </div>
                       )}
-                      <div className="flex items-center gap-2">
-                        <Clock className="h-4 w-4" />
-                        <span>{tournament.recentActivity} active matches</span>
+
+                      <div className="flex items-center gap-3 text-sm">
+                        <DollarSign className="h-4 w-4 text-bloom-dark/40" />
+                        <span className="font-sans text-bloom-dark/70">
+                          {tournament.entryFee > 0 ? `$${tournament.entryFee}` : 'GRATUIT'}
+                        </span>
                       </div>
+                    </div>
+
+                    {/* Organizer */}
+                    <div className="pt-4 border-t border-bloom-dark/10 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-bloom-accent to-bloom-sage" />
+                        <span className="font-sans text-xs text-bloom-dark/60">
+                          {tournament.organizer.username}
+                        </span>
+                      </div>
+                      <Zap className="h-4 w-4 text-bloom-accent opacity-0 group-hover:opacity-100 transition-opacity" />
                     </div>
                   </div>
                 </Link>
               ))}
             </div>
-          </div>
-        )}
-
-        {/* Filters */}
-        <div className="mb-6 rounded-lg bg-white/5 p-6 backdrop-blur-sm">
-          <div className="grid gap-4 md:grid-cols-4">
-            {/* Search */}
-            <div className="relative md:col-span-2">
-              <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
-              <Input
-                type="text"
-                placeholder="Search tournaments or games..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 bg-white/10 border-white/20 text-white placeholder:text-gray-400"
-              />
-            </div>
-
-            {/* Game Filter */}
-            <select
-              value={selectedGame}
-              onChange={(e) => setSelectedGame(e.target.value)}
-              className="rounded-md border border-white/20 bg-white/10 px-4 py-2 text-white focus:border-purple-500 focus:outline-none"
-            >
-              {games.map((game) => (
-                <option key={game} value={game} className="bg-gray-900">
-                  {game === 'all' ? 'All Games' : game}
-                </option>
-              ))}
-            </select>
-
-            {/* Status Filter */}
-            <select
-              value={selectedStatus}
-              onChange={(e) => setSelectedStatus(e.target.value)}
-              className="rounded-md border border-white/20 bg-white/10 px-4 py-2 text-white focus:border-purple-500 focus:outline-none"
-            >
-              {statuses.map((status) => (
-                <option key={status} value={status} className="bg-gray-900">
-                  {status === 'all'
-                    ? 'All Statuses'
-                    : status.replace(/_/g, ' ')}
-                </option>
-              ))}
-            </select>
-          </div>
+          )}
         </div>
-
-        {/* Tournament Grid */}
-        {loading ? (
-          <div className="flex h-64 items-center justify-center">
-            <div className="text-xl text-gray-400">Loading tournaments...</div>
-          </div>
-        ) : filteredTournaments.length === 0 ? (
-          <div className="flex h-64 flex-col items-center justify-center">
-            <Trophy className="mb-4 h-16 w-16 text-gray-600" />
-            <p className="text-xl text-gray-400">No tournaments found</p>
-            <p className="text-sm text-gray-500">Try adjusting your filters</p>
-          </div>
-        ) : (
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {filteredTournaments.map((tournament) => (
-              <Link
-                key={tournament.id}
-                href={`/tournaments/${tournament.id}`}
-                className="group"
-              >
-                <div className="h-full rounded-lg border border-white/10 bg-white/5 p-6 backdrop-blur-sm transition-all hover:border-purple-500/50 hover:bg-white/10 hover:shadow-lg">
-                  {/* Header */}
-                  <div className="mb-4 flex items-start justify-between">
-                    <div className="flex-1">
-                      <h3 className="text-xl font-bold text-white group-hover:text-purple-300">
-                        {tournament.name}
-                      </h3>
-                      <p className="mt-1 text-sm text-gray-400">{tournament.game}</p>
-                    </div>
-                    {getStatusBadge(tournament.status)}
-                  </div>
-
-                  {/* Info Grid */}
-                  <div className="space-y-3 text-sm">
-                    <div className="flex items-center gap-2 text-gray-300">
-                      <Users className="h-4 w-4" />
-                      <span>
-                        {tournament._count?.participants || 0}/{tournament.maxParticipants} Players
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-2 text-gray-300">
-                      <Calendar className="h-4 w-4" />
-                      <span>
-                        {new Date(tournament.startDate).toLocaleDateString()}
-                      </span>
-                    </div>
-
-                    {tournament.prizePool && tournament.prizePool > 0 && (
-                      <div className="flex items-center gap-2 text-yellow-400">
-                        <Trophy className="h-4 w-4" />
-                        <span className="font-semibold">${tournament.prizePool}</span>
-                      </div>
-                    )}
-
-                    {tournament.entryFee > 0 ? (
-                      <div className="flex items-center gap-2 text-gray-300">
-                        <DollarSign className="h-4 w-4" />
-                        <span>${tournament.entryFee} Entry Fee</span>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2 text-green-400">
-                        <span className="font-semibold">FREE</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Organizer */}
-                  <div className="mt-4 flex items-center gap-2 border-t border-white/10 pt-4">
-                    {tournament.organizer.avatar ? (
-                      <img
-                        src={tournament.organizer.avatar}
-                        alt={tournament.organizer.username}
-                        className="h-6 w-6 rounded-full"
-                      />
-                    ) : (
-                      <div className="h-6 w-6 rounded-full bg-gradient-to-br from-purple-500 to-pink-500"></div>
-                    )}
-                    <span className="text-sm text-gray-400">
-                      by {tournament.organizer.username}
-                    </span>
-                  </div>
-
-                  {/* CTA */}
-                  <Button className="mt-4 w-full bg-purple-600 hover:bg-purple-700">
-                    View Details
-                  </Button>
-                </div>
-              </Link>
-            ))}
-          </div>
-        )}
-      </div>
+      </section>
     </div>
-  );
+  )
 }
