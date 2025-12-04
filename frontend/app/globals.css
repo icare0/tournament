@@ -54,7 +54,11 @@
 
 @layer base {
   body {
-    @apply bg-bloom-bg text-bloom-dark font-sans antialiased;
+    background-color: #F4F1EA;
+    color: #1C2321;
+    font-family: "Manrope", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
