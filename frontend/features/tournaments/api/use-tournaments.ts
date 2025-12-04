@@ -80,6 +80,43 @@ export const tournamentsAPI = {
     )
     return response.data
   },
+
+  // Update participant seed
+  updateParticipantSeed: async (
+    tournamentId: string,
+    participantId: string,
+    seed: number
+  ): Promise<Participant> => {
+    const response = await apiClient.patch<Participant>(
+      `/tournaments/${tournamentId}/participants/${participantId}/seed`,
+      { seed }
+    )
+    return response.data
+  },
+
+  // Auto-seed participants
+  autoSeedParticipants: async (
+    tournamentId: string,
+    method: 'random' | 'skill' = 'random'
+  ): Promise<{ success: boolean; message: string; count: number }> => {
+    const response = await apiClient.post(
+      `/tournaments/${tournamentId}/participants/auto-seed`,
+      { method }
+    )
+    return response.data
+  },
+
+  // Generate bracket
+  generateBracket: async (tournamentId: string): Promise<{
+    success: boolean
+    matchesCreated: number
+    message: string
+  }> => {
+    const response = await apiClient.post(
+      `/tournaments/${tournamentId}/bracket/generate`
+    )
+    return response.data
+  },
 }
 
 // ============================================
@@ -187,5 +224,65 @@ export function useTournamentParticipants(tournamentId: string) {
     queryFn: () => tournamentsAPI.getParticipants(tournamentId),
     enabled: !!tournamentId,
     staleTime: 1000 * 60, // 1 minute
+  })
+}
+
+export function useUpdateParticipantSeed() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({
+      tournamentId,
+      participantId,
+      seed,
+    }: {
+      tournamentId: string
+      participantId: string
+      seed: number
+    }) => tournamentsAPI.updateParticipantSeed(tournamentId, participantId, seed),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ['tournaments', variables.tournamentId, 'participants'],
+      })
+      queryClient.invalidateQueries({
+        queryKey: ['tournaments', variables.tournamentId, 'bracket'],
+      })
+    },
+  })
+}
+
+export function useAutoSeedParticipants() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({
+      tournamentId,
+      method,
+    }: {
+      tournamentId: string
+      method?: 'random' | 'skill'
+    }) => tournamentsAPI.autoSeedParticipants(tournamentId, method),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ['tournaments', variables.tournamentId, 'participants'],
+      })
+    },
+  })
+}
+
+export function useGenerateBracket() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (tournamentId: string) =>
+      tournamentsAPI.generateBracket(tournamentId),
+    onSuccess: (_, tournamentId) => {
+      queryClient.invalidateQueries({
+        queryKey: ['tournaments', tournamentId, 'bracket'],
+      })
+      queryClient.invalidateQueries({
+        queryKey: ['tournaments', tournamentId],
+      })
+    },
   })
 }
