@@ -18,7 +18,7 @@ export default function PublicLayout({
           </Link>
 
           <nav className="flex items-center gap-4">
-            <Link href="/tournaments">
+            <Link href="/explore">
               <Button variant="ghost">Tournaments</Button>
             </Link>
             <Link href="/spectate">
